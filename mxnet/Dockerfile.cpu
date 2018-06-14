@@ -1,0 +1,37 @@
+FROM amazonlinux:2016.09
+
+RUN yum update -y
+RUN yum install -y \
+    atlas-devel \
+    atlas-sse3-devel \
+    blas-devel \
+    gcc \
+    gcc-c++ \
+    lapack-devel \
+    python27-devel \
+    python27-virtualenv \
+    findutils \
+    zip
+
+RUN yum install -y \
+    git \
+    cmake \
+    lapack-static \
+    openblas-devel \
+    wget
+
+ENV HOME "/home/dev"
+RUN mkdir -p "$HOME"
+
+ENV LIB_DIR "$HOME/lib"
+RUN mkdir -p "$LIB_DIR"
+
+ENV MXNET_DIR "$LIB_DIR/mxnet"
+
+# Clone MXNet repo and move into it
+RUN cd "$LIB_DIR" && git clone -b master --recursive https://github.com/dmlc/mxnet
+
+RUN cd "$LIB_DIR" && cd mxnet && \
+    make -j$(nproc) USE_OPENCV=0 USE_CUDNN=0 USE_CUDA=0 USE_BLAS=openblas USE_CPP_PACKAGE=1 USE_LAPACK=1 USE_LAPACK_PATH=/usr/lib64/liblapack.so USE_MKLDNN=0
+
+CMD ["/bin/bash"]

@@ -1,0 +1,48 @@
+FROM amazonlinux:2016.09
+
+RUN yum update -y
+RUN yum install -y \
+    atlas-devel \
+    atlas-sse3-devel \
+    blas-devel \
+    gcc \
+    gcc-c++ \
+    lapack-devel \
+    python27-devel \
+    python27-virtualenv \
+    findutils \
+    zip
+
+RUN yum install -y \
+    git \
+    cmake \
+    lapack-static \
+    openblas-devel \
+    wget
+
+ENV HOME "/home/dev"
+RUN mkdir -p "$HOME"
+
+ENV LIB_DIR "$HOME/lib"
+RUN mkdir -p "$LIB_DIR"
+
+ENV MXNET_DIR "$LIB_DIR/mxnet"
+
+# install mkl
+RUN wget --no-check-certificate -O /tmp/mklml.tgz https://github.com/intel/mkl-dnn/releases/download/v0.12/mklml_lnx_2018.0.1.20171227.tgz && \
+    tar -zxvf /tmp/mklml.tgz && cp -rf mklml_*/* /usr/local/ && rm -rf mklml_*
+
+RUN echo "/opt/intel/mkl/lib/intel64" >> /etc/ld.so.conf.d/intel.conf && \
+    ldconfig
+
+# Clone MXNet repo and move into it
+RUN cd "$LIB_DIR" && git clone -b master --recursive https://github.com/dmlc/mxnet
+
+RUN cd "$LIB_DIR" && cd mxnet && \
+    make -j$(nproc) USE_OPENCV=0 USE_CUDNN=0 USE_CUDA=0 USE_BLAS=openblas USE_CPP_PACKAGE=1 USE_LAPACK=1 USE_LAPACK_PATH=/usr/lib64/liblapack.so USE_MKLDNN=1
+
+RUN echo "/usr/local/lib" >> /etc/ld.so.conf.d/intel.conf && \
+    echo "/home/dev/lib/mxnet/3rdparty/mkldnn/install/lib" >> /etc/ld.so.conf.d/intel.conf && \
+    ldconfig
+
+CMD ["/bin/bash"]
